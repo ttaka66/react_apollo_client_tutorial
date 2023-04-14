@@ -1,12 +1,20 @@
 import React from "react";
-import ReactDOM from "react-dom/client";
+import * as ReactDOM from "react-dom/client";
+import { ApolloClient, InMemoryCache, ApolloProvider } from "@apollo/client";
 import App from "./App";
 
-const rootElement = document.getElementById("root")!;
-const root = ReactDOM.createRoot(rootElement);
+const client = new ApolloClient({
+  uri: "https://flyby-router-demo.herokuapp.com/",
+  cache: new InMemoryCache(),
+});
+
+// Supported in React 18+
+const root = ReactDOM.createRoot(
+  document.getElementById("root") as HTMLElement
+);
 
 root.render(
-  <React.StrictMode>
+  <ApolloProvider client={client}>
     <App />
-  </React.StrictMode>
+  </ApolloProvider>
 );
