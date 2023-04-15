@@ -12,32 +12,6 @@ import {
 const client = new ApolloClient({
   uri: "https://71z1g.sse.codesandbox.io/",
   cache: new InMemoryCache(),
-  defaultOptions: {
-    watchQuery: {
-      nextFetchPolicy(
-        currentFetchPolicy,
-        {
-          // Either "after-fetch" or "variables-changed", indicating why the
-          // nextFetchPolicy function was invoked.
-          reason,
-          // The rest of the options (currentFetchPolicy === options.fetchPolicy).
-          options,
-          // The ObservableQuery associated with this client.watchQuery call.
-          observable,
-        }
-      ) {
-        console.log("default next fetch", {
-          reason,
-          currentFetchPolicy,
-          options,
-          observable,
-        });
-
-        // Leave all other fetch policies unchanged.
-        return currentFetchPolicy;
-      },
-    },
-  },
 });
 
 const GET_DOGS = gql`
@@ -59,7 +33,18 @@ type Dog = {
 };
 
 function Dogs({ onDogSelected }: DogProps): JSX.Element {
-  const { loading, error, data } = useQuery(GET_DOGS);
+  const { loading, error, data } = useQuery(GET_DOGS, {
+    // pollInterval: 5000,
+    nextFetchPolicy(currentFetchPolicy, { reason, options, observable }) {
+      console.log("dogs next fetch", {
+        reason,
+        currentFetchPolicy,
+        options,
+        observable,
+      });
+      return "cache-only";
+    },
+  });
 
   if (loading) return <>"Loading..."</>;
   if (error) return <>`Error! ${error.message}`</>;
@@ -93,29 +78,22 @@ function DogPhoto({ breed }: DogPhotoProps): JSX.Element {
     GET_DOG_PHOTO,
     {
       variables: { breed },
-      notifyOnNetworkStatusChange: true,
-      // pollInterval: 5000,
       errorPolicy: "all",
-      fetchPolicy: "network-only",
-      nextFetchPolicy(
-        currentFetchPolicy,
-        {
-          // Either "after-fetch" or "variables-changed", indicating why the
-          // nextFetchPolicy function was invoked.
-          reason,
-          // The rest of the options (currentFetchPolicy === options.fetchPolicy).
-          options,
-          // The ObservableQuery associated with this client.watchQuery call.
-          observable,
-        }
-      ) {
+      fetchPolicy: "cache-first",
+      nextFetchPolicy(currentFetchPolicy, { reason, options, observable }) {
         console.log("dog photo next fetch", {
           reason,
           currentFetchPolicy,
           options,
           observable,
         });
-        return "cache-only";
+        // fetchPolicyと違うものを返すとreason === "variables-changed"にならない
+        // return "cache-only";
+        if (reason === "variables-changed") {
+          console.log(`nextFetchPolicy called with reason "${reason}"`);
+          return "cache-only";
+        }
+        return currentFetchPolicy;
       },
     }
   );
@@ -153,7 +131,7 @@ function DelayedQuery(): JSX.Element {
 function App() {
   const [selectedDog, setSelectedDog] = useState("");
 
-  function onDogSelected(e: React.ChangeEvent<HTMLSelectElement>): void {
+  function onDogSelected(e: React.ChangeEvent<HTMLSelectElement>) {
     setSelectedDog(e.target.value);
   }
 
